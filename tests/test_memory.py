@@ -102,3 +102,53 @@ def test_persona_is_dynamic_not_hardcoded():
 ])
 def test_categorize_fact(fact, cat):
     assert categorize_fact(fact) == cat
+
+
+# ---- hosted Mem0: asynchronous add must be awaited so facts are stored before returning ----
+class _Resp:
+    def __init__(self, data):
+        self._d = data
+
+    def json(self):
+        return self._d
+
+
+class FakeHostedClient:
+    def __init__(self, statuses):
+        self.statuses, self.polls = list(statuses), 0
+        self.client = self
+
+    def add(self, messages, **kw):
+        return {"event_id": "ev1", "status": "PENDING"}
+
+    def get(self, path):
+        self.polls += 1
+        status = self.statuses.pop(0) if len(self.statuses) > 1 else self.statuses[0]
+        results = [{"id": "m1", "data": {"memory": "User works in Python"}, "event": "ADD", "user_id": "u"}]
+        return _Resp({"status": status, "results": results if status == "SUCCEEDED" else None})
+
+
+def test_hosted_add_waits_for_async_event(monkeypatch):
+    from app.memory.mem0_manager import Mem0HostedBackend
+
+    monkeypatch.setattr(Mem0HostedBackend, "EVENT_POLL_S", 0.001)
+    client = FakeHostedClient(["PENDING", "RUNNING", "SUCCEEDED"])
+    saved = Mem0Manager(Mem0HostedBackend(client)).add_memory("u", "I work in Python")
+    assert [m.fact for m in saved] == ["User works in Python"] and saved[0].category == "programming_language"
+    assert client.polls == 3
+
+
+def test_hosted_add_timeout_returns_empty(monkeypatch):
+    from app.memory.mem0_manager import Mem0HostedBackend
+
+    monkeypatch.setattr(Mem0HostedBackend, "EVENT_POLL_S", 0.001)
+    monkeypatch.setattr(Mem0HostedBackend, "EVENT_TIMEOUT_S", 0.02)
+    assert Mem0Manager(Mem0HostedBackend(FakeHostedClient(["RUNNING"]))).add_memory("u", "hi") == []
+
+
+def test_hosted_add_failed_event_raises(monkeypatch):
+    from app.memory.mem0_manager import Mem0HostedBackend
+
+    monkeypatch.setattr(Mem0HostedBackend, "EVENT_POLL_S", 0.001)
+    with pytest.raises(MemoryError_):
+        Mem0Manager(Mem0HostedBackend(FakeHostedClient(["FAILED"]))).add_memory("u", "hi")

@@ -1,5 +1,7 @@
 # Advanced RAG Agent with Context Compression & Semantic Memory
 
+- **Repository**: [Insert URL]
+
 A FastAPI backend implementing an advanced Retrieval-Augmented Generation (RAG) pipeline: hybrid dense + sparse retrieval fused with Reciprocal Rank Fusion, parent-document retrieval, Cohere Rerank context compression, Mem0 long-term semantic memory and per-user persona adaptation, with per-request latency telemetry.
 
 ## 1. Overview and problem statement
@@ -121,7 +123,7 @@ Unchanged files are skipped; changed files replace their old records. **With loc
 ## 9. Run the application
 
 ```bash
-uvicorn app.main:app --host 0.0.0.0 --port 8000
+uvicorn app.main:app --host 0.0.0.0 --port 8000   # `uvicorn main:app --reload` also works
 ```
 
 - Swagger UI: http://localhost:8000/docs  (OpenAPI JSON at `/openapi.json`)
@@ -195,6 +197,6 @@ The image has a `/health` HEALTHCHECK and never contains secrets.
 - Memory categories are assigned by keyword rules, not by the LLM; unusual facts fall into `general`.
 - The BM25 index is held in memory and rebuilt from `data/children.json` when chunks change; very large corpora would call for Qdrant sparse vectors instead.
 - Local Qdrant storage is single-process (see ingestion note). Hosted Mem0 (`MEM0_API_KEY`) support follows the SDK's documented interface but was not exercised against the live service.
-- Hosted Mem0 (`MEM0_API_KEY`) is eventually consistent: `add` returns `PENDING` and facts appear ~2-5 s later, so `memories_saved` is 0 for that request and a *new session started immediately* may not see them yet. The open-source Mem0 path is synchronous.
+- Hosted Mem0 (`MEM0_API_KEY`) extracts asynchronously; the app waits (up to 20 s) for the add event to finish, so a chat request that states preferences takes a few seconds longer (`memory_update_latency_ms`).
 - Mem0 extraction quality depends on the configured LLM; a stated preference is stored only if the model judges it durable.
 - Only PDF and TXT are supported; PDFs without a text layer (scans) yield no chunks.

@@ -1,6 +1,7 @@
 """Long-term semantic memory on Mem0 (open-source SDK or hosted platform), scoped per user_id."""
 from __future__ import annotations
 
+import time
 from typing import Any, Protocol
 
 from app.core.config import ConfigurationError, Settings
@@ -73,15 +74,47 @@ class Mem0HostedBackend:
     def __init__(self, client: Any) -> None:
         self._c = client
 
+    EVENT_TIMEOUT_S = 20.0
+    EVENT_POLL_S = 0.5
+
     def add(self, text: str, user_id: str, metadata: dict[str, Any]) -> list[dict[str, Any]]:
-        return _results(
-            self._c.add(
-                [{"role": "user", "content": text}],
-                user_id=user_id,
-                metadata=metadata,
-                custom_instructions=EXTRACTION_INSTRUCTIONS,
-            )
+        resp = self._c.add(
+            [{"role": "user", "content": text}],
+            user_id=user_id,
+            metadata=metadata,
+            custom_instructions=EXTRACTION_INSTRUCTIONS,
         )
+        # The hosted platform extracts asynchronously (status PENDING + event_id). Wait for the
+        # event to finish so the facts are stored before this request returns and a new session
+        # started right away already sees them.
+        if isinstance(resp, dict) and resp.get("event_id") and "results" not in resp:
+            return self._await_event(str(resp["event_id"]), user_id)
+        return _results(resp)
+
+    def _await_event(self, event_id: str, user_id: str) -> list[dict[str, Any]]:
+        deadline = time.monotonic() + self.EVENT_TIMEOUT_S
+        while time.monotonic() < deadline:
+            try:
+                ev = self._c.client.get(f"/v1/event/{event_id}/").json()
+            except Exception as exc:
+                log.warning(kv(event="mem0_event_poll_failed", error=type(exc).__name__))
+                return []
+            status = str(ev.get("status", "")).upper()
+            if status not in ("PENDING", "RUNNING", "QUEUED"):
+                if status in ("FAILED", "ERROR"):
+                    raise RuntimeError(f"Mem0 event failed: {ev.get('error')}")
+                return [
+                    {
+                        "id": r.get("id"),
+                        "memory": (r.get("data") or {}).get("memory", ""),
+                        "user_id": r.get("user_id", user_id),
+                        "event": r.get("event", "ADD"),
+                    }
+                    for r in (ev.get("results") or [])
+                ]
+            time.sleep(self.EVENT_POLL_S)
+        log.warning(kv(event="mem0_event_timeout", event_id=event_id))
+        return []
 
     def search(self, query: str, user_id: str, limit: int) -> list[dict[str, Any]]:
         return _results(self._c.search(query, filters={"user_id": user_id}, top_k=limit))
