@@ -5,7 +5,7 @@ import re
 from typing import Callable
 
 from langchain_core.documents import Document
-from rank_bm25 import BM25Okapi
+from rank_bm25 import BM25Plus
 
 _TOKEN_RE = re.compile(r"[A-Za-z0-9_]+(?:[-.][A-Za-z0-9_]+)*")
 
@@ -23,7 +23,7 @@ def tokenize(text: str) -> list[str]:
 
 
 class SparseRetriever:
-    """BM25 keyword retriever. The corpus is supplied lazily so newly ingested chunks are picked up;
+    """BM25+ keyword retriever (positive IDF even on tiny corpora). The corpus is supplied lazily so newly ingested chunks are picked up;
     the index is rebuilt only when the corpus changes."""
 
     def __init__(self, corpus_loader: Callable[[], list[Document]], top_k: int = 20) -> None:
@@ -31,7 +31,8 @@ class SparseRetriever:
         self.top_k = top_k
         self._signature: tuple | None = None
         self._docs: list[Document] = []
-        self._bm25: BM25Okapi | None = None
+        self._bm25: BM25Plus | None = None
+        self._token_sets: list[set[str]] = []
 
     def _ensure_index(self) -> None:
         docs = self._load()
@@ -40,7 +41,9 @@ class SparseRetriever:
             return
         self._docs = docs
         self._signature = signature
-        self._bm25 = BM25Okapi([tokenize(d.page_content) for d in docs]) if docs else None
+        tokenized = [tokenize(d.page_content) for d in docs]
+        self._token_sets = [set(t) for t in tokenized]
+        self._bm25 = BM25Plus(tokenized) if docs else None
 
     def retrieve(self, query: str, top_k: int | None = None) -> list[Document]:
         self._ensure_index()
@@ -49,12 +52,15 @@ class SparseRetriever:
         q = tokenize(query)
         if not q:
             return []
+        qset = set(q)
         scores = self._bm25.get_scores(q)
         ranked = sorted(range(len(self._docs)), key=lambda i: scores[i], reverse=True)
         out: list[Document] = []
-        for i in ranked[: top_k or self.top_k]:
-            if scores[i] <= 0:  # no lexical overlap at all
+        for i in ranked:
+            if len(out) >= (top_k or self.top_k):
                 break
+            if not qset & self._token_sets[i]:  # BM25+ gives a baseline to non-matches; require overlap
+                continue
             d = self._docs[i]
             out.append(Document(page_content=d.page_content, metadata={**d.metadata, "sparse_score": float(scores[i])}))
         return out
