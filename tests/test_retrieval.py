@@ -163,3 +163,14 @@ def test_sparse_retriever_picks_up_new_chunks():
     assert sparse.retrieve("alpha") == []
     corpus.append(Document(page_content="alpha beta", metadata={"child_id": "x"}))
     assert len(sparse.retrieve("alpha")) == 1
+
+
+def test_large_document_is_embedded_and_upserted_in_batches(indexer, tmp_path):
+    indexer.BATCH_SIZE = 5
+    calls = []
+    real = indexer.embeddings.embed_documents
+    indexer.embeddings.embed_documents = lambda texts: (calls.append(len(texts)), real(texts))[1]
+    res = indexer.ingest_file(write_doc(tmp_path, body="Article 21 protects life and personal liberty. " * 200))
+    assert res.status == "ingested" and res.children > 15
+    assert len(calls) > 1 and max(calls) <= 5 and sum(calls) == res.children
+    assert indexer.client.count("test").count == res.children

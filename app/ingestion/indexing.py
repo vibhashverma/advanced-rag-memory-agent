@@ -95,6 +95,8 @@ class IngestResult:
 class Indexer:
     """Idempotent ingestion: unchanged files are skipped; changed files replace their old records."""
 
+    BATCH_SIZE = 128
+
     def __init__(
         self,
         client: QdrantClient,
@@ -140,19 +142,23 @@ class Indexer:
                 self.parent_store.delete_document(old_id)
                 self.child_store.replace_document(old_id, [])
             self._delete_vectors(document_id)
-            vectors = self.embeddings.embed_documents([c.page_content for c in children])
-            ensure_collection(self.client, self.collection, len(vectors[0]))
-            self.client.upsert(
-                collection_name=self.collection,
-                points=[
-                    models.PointStruct(
-                        id=point_id(c.metadata["child_id"]),
-                        vector=v,
-                        payload={"page_content": c.page_content, "metadata": c.metadata},
-                    )
-                    for c, v in zip(children, vectors)
-                ],
-            )
+            # Embed + upsert in batches so large documents (hundreds of pages) stay within request
+            # size limits and memory bounds.
+            for start in range(0, len(children), self.BATCH_SIZE):
+                batch = children[start : start + self.BATCH_SIZE]
+                vectors = self.embeddings.embed_documents([c.page_content for c in batch])
+                ensure_collection(self.client, self.collection, len(vectors[0]))
+                self.client.upsert(
+                    collection_name=self.collection,
+                    points=[
+                        models.PointStruct(
+                            id=point_id(c.metadata["child_id"]),
+                            vector=v,
+                            payload={"page_content": c.page_content, "metadata": c.metadata},
+                        )
+                        for c, v in zip(batch, vectors)
+                    ],
+                )
             self.parent_store.put_document(document_id, parents)
             self.child_store.replace_document(document_id, children)
             manifest[path.name] = document_id
