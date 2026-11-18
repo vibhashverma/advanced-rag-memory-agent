@@ -26,6 +26,11 @@ def build_embeddings(settings: Settings) -> Embeddings:
         if settings.openai_base_url:
             kwargs["base_url"] = settings.openai_base_url
         return OpenAIEmbeddings(**kwargs)
+    if settings.embedding_provider == "huggingface":
+        from langchain_huggingface import HuggingFaceEmbeddings
+
+        # Runs locally (downloads the model on first use); no API key needed.
+        return HuggingFaceEmbeddings(model_name=settings.embedding_model)
     if settings.embedding_provider == "gemini":
         from langchain_google_genai import GoogleGenerativeAIEmbeddings
 

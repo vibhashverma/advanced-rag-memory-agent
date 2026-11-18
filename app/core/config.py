@@ -11,7 +11,7 @@ from dotenv import load_dotenv
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 
 SUPPORTED_LLM_PROVIDERS = {"openai", "anthropic", "cohere", "gemini"}
-SUPPORTED_EMBEDDING_PROVIDERS = {"openai", "cohere", "gemini"}
+SUPPORTED_EMBEDDING_PROVIDERS = {"openai", "cohere", "gemini", "huggingface"}
 
 
 class ConfigurationError(RuntimeError):
