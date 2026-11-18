@@ -26,6 +26,10 @@ def build_embeddings(settings: Settings) -> Embeddings:
         if settings.openai_base_url:
             kwargs["base_url"] = settings.openai_base_url
         return OpenAIEmbeddings(**kwargs)
+    if settings.embedding_provider == "gemini":
+        from langchain_google_genai import GoogleGenerativeAIEmbeddings
+
+        return GoogleGenerativeAIEmbeddings(model=settings.embedding_model, google_api_key=settings.gemini_api_key)
     if settings.embedding_provider == "cohere":
         from langchain_cohere import CohereEmbeddings
 

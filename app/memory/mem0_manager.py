@@ -107,6 +107,7 @@ _KNOWN_DIMS = {
     "embed-multilingual-v3.0": 1024,
     "embed-english-light-v3.0": 384,
     "embed-v4.0": 1536,
+    "gemini-embedding-001": 3072,
 }
 
 

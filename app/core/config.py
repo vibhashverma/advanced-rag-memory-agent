@@ -10,8 +10,8 @@ from dotenv import load_dotenv
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 
-SUPPORTED_LLM_PROVIDERS = {"openai", "anthropic", "cohere"}
-SUPPORTED_EMBEDDING_PROVIDERS = {"openai", "cohere"}
+SUPPORTED_LLM_PROVIDERS = {"openai", "anthropic", "cohere", "gemini"}
+SUPPORTED_EMBEDDING_PROVIDERS = {"openai", "cohere", "gemini"}
 
 
 class ConfigurationError(RuntimeError):
@@ -52,6 +52,7 @@ class Settings:
     openai_api_key: str
     openai_base_url: str
     anthropic_api_key: str
+    gemini_api_key: str
     cohere_api_key: str
     qdrant_url: str
     qdrant_api_key: str
@@ -103,10 +104,13 @@ class Settings:
             problems.append("COHERE_API_KEY is required (Cohere Rerank)")
         if self.embedding_provider == "openai" and not self.openai_api_key:
             problems.append("OPENAI_API_KEY is required for EMBEDDING_PROVIDER=openai")
+        if self.embedding_provider == "gemini" and not self.gemini_api_key:
+            problems.append("GEMINI_API_KEY is required for EMBEDDING_PROVIDER=gemini")
         if for_generation:
             keys = {
                 "openai": self.openai_api_key,
                 "anthropic": self.anthropic_api_key,
+                "gemini": self.gemini_api_key,
                 "cohere": self.cohere_api_key,
             }
             if self.llm_provider in keys and not keys[self.llm_provider]:
@@ -131,6 +135,7 @@ def load_settings() -> Settings:
         openai_api_key=_str("OPENAI_API_KEY"),
         openai_base_url=_str("OPENAI_BASE_URL"),
         anthropic_api_key=_str("ANTHROPIC_API_KEY"),
+        gemini_api_key=_str("GEMINI_API_KEY") or _str("GOOGLE_API_KEY"),
         cohere_api_key=_str("COHERE_API_KEY"),
         qdrant_url=_str("QDRANT_URL"),
         qdrant_api_key=_str("QDRANT_API_KEY"),

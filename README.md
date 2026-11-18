@@ -80,7 +80,7 @@ Dockerfile  docker-compose.yml  requirements.txt  pytest.ini  .env.example
 ## 6. Prerequisites and installation
 
 - Python 3.12+ (3.13 also works), Git, optionally Docker
-- API keys: **Cohere** (rerank - always required), **OpenAI** (default LLM + embeddings) or Anthropic/Cohere if you switch providers
+- API keys: **Cohere** (rerank - always required), **Gemini** (default LLM + embeddings) or OpenAI/Anthropic/Cohere if you switch providers
 
 ```bash
 python -m venv .venv
@@ -95,9 +95,9 @@ Loaded with python-dotenv from `.env` (never committed). See `.env.example`.
 
 | Variable | Purpose |
 |---|---|
-| `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, `COHERE_API_KEY` | Provider keys (only those for the providers you select; Cohere is always needed for rerank) |
-| `LLM_PROVIDER`, `LLM_MODEL` | `openai` / `anthropic` / `cohere` and model name |
-| `EMBEDDING_PROVIDER`, `EMBEDDING_MODEL` | `openai` / `cohere` and model name |
+| `GEMINI_API_KEY` (or `GOOGLE_API_KEY`), `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, `COHERE_API_KEY` | Provider keys (only those for the providers you select; Cohere is always needed for rerank) |
+| `LLM_PROVIDER`, `LLM_MODEL` | `gemini` (default) / `openai` / `anthropic` / `cohere` and model name |
+| `EMBEDDING_PROVIDER`, `EMBEDDING_MODEL` | `gemini` (default) / `openai` / `cohere` and model name |
 | `RERANK_MODEL` (`rerank-english-v3.0`), `RETRIEVAL_TOP_K` (20), `RERANK_TOP_N` (5), `MIN_RELEVANCE_SCORE` | Compression settings |
 | `QDRANT_URL`, `QDRANT_API_KEY` | Qdrant server; empty `QDRANT_URL` = local storage at `QDRANT_PATH` |
 | `MEM0_API_KEY` | Set to use hosted Mem0; empty = open-source Mem0 stored under `MEM0_PATH` |

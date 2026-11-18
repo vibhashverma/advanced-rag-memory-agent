@@ -30,6 +30,10 @@ def build_chat_model(settings: Settings) -> BaseChatModel:
         from langchain_anthropic import ChatAnthropic
 
         return ChatAnthropic(model=settings.llm_model, api_key=settings.anthropic_api_key, temperature=0.2)
+    if p == "gemini":
+        from langchain_google_genai import ChatGoogleGenerativeAI
+
+        return ChatGoogleGenerativeAI(model=settings.llm_model, google_api_key=settings.gemini_api_key, temperature=0.2)
     if p == "cohere":
         from langchain_cohere import ChatCohere
 

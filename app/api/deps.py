@@ -32,7 +32,7 @@ class Container:
 
     def _secrets(self) -> list[str]:
         s = self.settings
-        return [s.openai_api_key, s.anthropic_api_key, s.cohere_api_key, s.qdrant_api_key, s.mem0_api_key]
+        return [s.openai_api_key, s.anthropic_api_key, s.gemini_api_key, s.cohere_api_key, s.qdrant_api_key, s.mem0_api_key]
 
     def _shared(self):
         if self._llm is None:

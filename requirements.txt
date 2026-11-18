@@ -18,3 +18,4 @@ cohere
 httpx
 pytest
 pytest-mock
+langchain-google-genai
