@@ -5,7 +5,7 @@ from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 
 from app.agent.generation import GenerationError
-from app.api import chat, memories
+from app.api import chat, documents, memories
 from app.core.config import ConfigurationError, get_settings
 from app.core.logging import configure_logging, get_logger, kv
 from app.core.security import redact
@@ -28,6 +28,7 @@ def create_app() -> FastAPI:
     )
     app.include_router(chat.router)
     app.include_router(memories.router)
+    app.include_router(documents.router)
 
     @app.get("/health", tags=["system"], summary="Liveness check")
     async def health() -> dict:

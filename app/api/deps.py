@@ -11,7 +11,7 @@ from app.agent.generation import Generator, build_chat_model
 from app.agent.rag_agent import RagAgent
 from app.compression.reranker import build_reranker
 from app.core.config import Settings, get_settings
-from app.ingestion.indexing import ChildStore, ParentStore
+from app.ingestion.indexing import ChildStore, Indexer, ParentStore
 from app.memory.mem0_manager import Mem0Manager, build_mem0_backend
 from app.retrieval.dense_retriever import DenseRetriever, build_embeddings, build_qdrant_client
 from app.retrieval.hybrid_retriever import HybridRetriever
@@ -29,16 +29,45 @@ class Container:
         self._memory: Mem0Manager | None = None
         self._llm = None
         self._embeddings = None
+        self._qdrant = None
+        self._indexer: Indexer | None = None
 
     def _secrets(self) -> list[str]:
         s = self.settings
         return [s.openai_api_key, s.anthropic_api_key, s.gemini_api_key, s.cohere_api_key, s.qdrant_api_key, s.mem0_api_key]
 
+    def _get_embeddings(self):
+        if self._embeddings is None:
+            self._embeddings = build_embeddings(self.settings)
+        return self._embeddings
+
+    def _qdrant_client(self):
+        # One client per process: local Qdrant storage cannot be opened twice.
+        if self._qdrant is None:
+            self._qdrant = build_qdrant_client(self.settings)
+        return self._qdrant
+
     def _shared(self):
         if self._llm is None:
             self._llm = build_chat_model(self.settings)
-            self._embeddings = build_embeddings(self.settings)
-        return self._llm, self._embeddings
+        return self._llm, self._get_embeddings()
+
+    def indexer(self) -> Indexer:
+        with self._lock:
+            if self._indexer is None:
+                s = self.settings
+                s.validate(for_generation=False)
+                self._indexer = Indexer(
+                    client=self._qdrant_client(),
+                    embeddings=self._get_embeddings(),
+                    collection=s.qdrant_collection,
+                    parent_store=ParentStore(s.parents_dir),
+                    child_store=ChildStore(s.children_file),
+                    manifest_path=s.manifest_file,
+                    parent_chunk_size=s.parent_chunk_size,
+                    child_chunk_size=s.child_chunk_size,
+                )
+            return self._indexer
 
     def memory_manager(self) -> Mem0Manager:
         with self._lock:
@@ -57,7 +86,7 @@ class Container:
                 s.validate()
                 llm, emb = self._shared()
                 hybrid = HybridRetriever(
-                    DenseRetriever(build_qdrant_client(s), emb, s.qdrant_collection, s.dense_top_k),
+                    DenseRetriever(self._qdrant_client(), emb, s.qdrant_collection, s.dense_top_k),
                     SparseRetriever(ChildStore(s.children_file).load, s.sparse_top_k),
                     rrf_k=s.rrf_k,
                     dense_top_k=s.dense_top_k,
@@ -86,3 +115,7 @@ def get_chat_service() -> Callable[[], ChatService]:
 
 def get_memory_manager() -> Callable[[], Mem0Manager]:
     return get_container().memory_manager
+
+
+def get_indexer() -> Callable[[], Indexer]:
+    return get_container().indexer

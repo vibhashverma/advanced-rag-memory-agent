@@ -110,6 +110,8 @@ If you change `EMBEDDING_MODEL`/provider after ingesting, re-ingest with `--forc
 
 ## 8. Ingest documents
 
+Easiest: upload through the API (`POST /api/documents`, see section 10). Or from the command line:
+
 Put `.pdf` / `.txt` files in `data/documents/` (a sample `rag_overview.txt` is included), then:
 
 ```bash
@@ -130,6 +132,16 @@ uvicorn app.main:app --host 0.0.0.0 --port 8000   # `uvicorn main:app --reload` 
 - Health: http://localhost:8000/health
 
 ## 10. API
+
+### `POST /api/documents` (upload a PDF or TXT)
+In Swagger UI (`/docs`) open `POST /api/documents`, click **Try it out**, choose a file, **Execute**. Or:
+```bash
+curl -X POST http://localhost:8000/api/documents -F "file=@my_paper.pdf"
+```
+```json
+{"filename": "my_paper.pdf", "document_id": "332c24abab1477d4", "status": "ingested", "parents": 12, "children": 58}
+```
+The file is saved to `data/documents/`, chunked, embedded and indexed immediately and is searchable by the next chat request. Identical content returns `"status": "skipped"`. Limits: `.pdf`/`.txt` only, 25 MB. Errors: 400 (wrong type / empty), 413 (too large), 422 (no extractable text, e.g. a scanned PDF). Uploading through the running server also avoids the local-Qdrant single-process lock.
 
 ### `POST /api/chat`
 ```bash

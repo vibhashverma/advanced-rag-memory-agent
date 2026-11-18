@@ -5,11 +5,93 @@
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [
-    { "key": "base_url", "value": "http://localhost:8000", "type": "string" },
-    { "key": "user_id", "value": "usr_99", "type": "string" },
-    { "key": "session_id", "value": "session_001", "type": "string" }
+    {
+      "key": "base_url",
+      "value": "http://localhost:8000",
+      "type": "string"
+    },
+    {
+      "key": "user_id",
+      "value": "usr_99",
+      "type": "string"
+    },
+    {
+      "key": "session_id",
+      "value": "session_001",
+      "type": "string"
+    }
   ],
   "item": [
+    {
+      "name": "POST /api/documents (upload PDF/TXT)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('status is 200', () => pm.response.to.have.status(200));",
+              "pm.test('ingested or skipped', () => pm.expect(['ingested','skipped']).to.include(pm.response.json().status));"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [],
+        "body": {
+          "mode": "formdata",
+          "formdata": [
+            {
+              "key": "file",
+              "type": "file",
+              "src": [],
+              "description": "Choose a .pdf or .txt file"
+            }
+          ]
+        },
+        "url": {
+          "raw": "{{base_url}}/api/documents",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "api",
+            "documents"
+          ]
+        },
+        "description": "Uploads a PDF or TXT file (max 25 MB), splits it into parent/child chunks, embeds and indexes it. Re-uploading identical content is skipped."
+      },
+      "response": [
+        {
+          "name": "200 OK",
+          "originalRequest": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/documents",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "documents"
+              ]
+            }
+          },
+          "status": "OK",
+          "code": 200,
+          "_postman_previewlanguage": "json",
+          "header": [
+            {
+              "key": "Content-Type",
+              "value": "application/json"
+            }
+          ],
+          "body": "{\n  \"filename\": \"paper.pdf\",\n  \"document_id\": \"332c24abab1477d4\",\n  \"status\": \"ingested\",\n  \"parents\": 12,\n  \"children\": 58\n}"
+        }
+      ]
+    },
     {
       "name": "POST /api/chat",
       "event": [
@@ -37,18 +119,33 @@
       "request": {
         "method": "POST",
         "header": [
-          { "key": "Content-Type", "value": "application/json" },
-          { "key": "Accept", "value": "application/json" }
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Accept",
+            "value": "application/json"
+          }
         ],
         "body": {
           "mode": "raw",
           "raw": "{\n  \"query\": \"Explain hybrid search\",\n  \"user_id\": \"{{user_id}}\",\n  \"session_id\": \"{{session_id}}\"\n}",
-          "options": { "raw": { "language": "json" } }
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
         },
         "url": {
           "raw": "{{base_url}}/api/chat",
-          "host": ["{{base_url}}"],
-          "path": ["api", "chat"]
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "api",
+            "chat"
+          ]
         },
         "description": "Runs the full pipeline: user memories -> persona -> dense+BM25 retrieval -> RRF -> parent documents (top 20) -> Cohere rerank (top 5) -> LLM -> memory update. Returns the answer, sources and latency telemetry. Memories are keyed by user_id, so they persist across session_id values."
       },
@@ -57,31 +154,72 @@
           "name": "200 OK (illustrative values)",
           "originalRequest": {
             "method": "POST",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
             "body": {
               "mode": "raw",
               "raw": "{\n  \"query\": \"Explain hybrid search\",\n  \"user_id\": \"usr_99\",\n  \"session_id\": \"session_001\"\n}"
             },
-            "url": { "raw": "{{base_url}}/api/chat", "host": ["{{base_url}}"], "path": ["api", "chat"] }
+            "url": {
+              "raw": "{{base_url}}/api/chat",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "chat"
+              ]
+            }
           },
           "status": "OK",
           "code": 200,
           "_postman_previewlanguage": "json",
-          "header": [{ "key": "Content-Type", "value": "application/json" }],
+          "header": [
+            {
+              "key": "Content-Type",
+              "value": "application/json"
+            }
+          ],
           "body": "{\n  \"answer\": \"Hybrid search combines dense (semantic) and sparse (BM25 keyword) retrieval ... [1]\",\n  \"user_id\": \"usr_99\",\n  \"session_id\": \"session_001\",\n  \"sources\": [\n    {\n      \"source\": \"rag_overview.txt\",\n      \"page\": null,\n      \"parent_id\": \"b133bac4478f7ae1-p0\",\n      \"relevance_score\": 0.93,\n      \"snippet\": \"Hybrid search combines dense retrieval and sparse retrieval...\"\n    }\n  ],\n  \"telemetry\": {\n    \"retrieval_latency_ms\": 120.4,\n    \"rerank_latency_ms\": 180.2,\n    \"generation_latency_ms\": 450.7,\n    \"total_latency_ms\": 800.9,\n    \"retrieved_candidates\": 20,\n    \"compressed_contexts\": 5\n  }\n}"
         },
         {
           "name": "422 Validation error",
           "originalRequest": {
             "method": "POST",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
-            "body": { "mode": "raw", "raw": "{\n  \"query\": \"  \",\n  \"user_id\": \"usr_99\",\n  \"session_id\": \"session_001\"\n}" },
-            "url": { "raw": "{{base_url}}/api/chat", "host": ["{{base_url}}"], "path": ["api", "chat"] }
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"query\": \"  \",\n  \"user_id\": \"usr_99\",\n  \"session_id\": \"session_001\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/chat",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "chat"
+              ]
+            }
           },
           "status": "Unprocessable Entity",
           "code": 422,
           "_postman_previewlanguage": "json",
-          "header": [{ "key": "Content-Type", "value": "application/json" }],
+          "header": [
+            {
+              "key": "Content-Type",
+              "value": "application/json"
+            }
+          ],
           "body": "{\n  \"detail\": [\n    {\n      \"type\": \"string_too_short\",\n      \"loc\": [\"body\", \"query\"],\n      \"msg\": \"String should have at least 1 character\"\n    }\n  ]\n}"
         }
       ]
@@ -106,11 +244,23 @@
       ],
       "request": {
         "method": "GET",
-        "header": [{ "key": "Accept", "value": "application/json" }],
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          }
+        ],
         "url": {
           "raw": "{{base_url}}/api/users/{{user_id}}/memories",
-          "host": ["{{base_url}}"],
-          "path": ["api", "users", "{{user_id}}", "memories"]
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "api",
+            "users",
+            "{{user_id}}",
+            "memories"
+          ]
         },
         "description": "Returns every semantic memory stored for this user only. Unknown users get an empty list."
       },
@@ -120,12 +270,28 @@
           "originalRequest": {
             "method": "GET",
             "header": [],
-            "url": { "raw": "{{base_url}}/api/users/usr_99/memories", "host": ["{{base_url}}"], "path": ["api", "users", "usr_99", "memories"] }
+            "url": {
+              "raw": "{{base_url}}/api/users/usr_99/memories",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "users",
+                "usr_99",
+                "memories"
+              ]
+            }
           },
           "status": "OK",
           "code": 200,
           "_postman_previewlanguage": "json",
-          "header": [{ "key": "Content-Type", "value": "application/json" }],
+          "header": [
+            {
+              "key": "Content-Type",
+              "value": "application/json"
+            }
+          ],
           "body": "{\n  \"user_id\": \"usr_99\",\n  \"memories\": [\n    { \"id\": \"01b50f0a-be1a-4084-a57d-a5a68e870147\", \"fact\": \"Prefers Python\", \"category\": \"programming_language\" },\n    { \"id\": \"acda9988-913e-418d-9bbc-c5110851e3a7\", \"fact\": \"Prefers brief responses\", \"category\": \"response_style\" }\n  ]\n}"
         }
       ]
@@ -135,7 +301,15 @@
       "request": {
         "method": "GET",
         "header": [],
-        "url": { "raw": "{{base_url}}/health", "host": ["{{base_url}}"], "path": ["health"] },
+        "url": {
+          "raw": "{{base_url}}/health",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "health"
+          ]
+        },
         "description": "Liveness check (no credentials needed)."
       },
       "response": []

@@ -58,6 +58,16 @@ def ensure_collection(client: QdrantClient, collection: str, vector_size: int) -
         )
 
 
+def ensure_document_index(client: QdrantClient, collection: str) -> None:
+    """Qdrant servers (e.g. Qdrant Cloud) refuse filtered deletes on un-indexed payload fields.
+    Creating the index is idempotent and a no-op in local mode."""
+    client.create_payload_index(
+        collection_name=collection,
+        field_name="metadata.document_id",
+        field_schema=models.PayloadSchemaType.KEYWORD,
+    )
+
+
 class DenseRetriever:
     """Similarity search over child chunks stored in Qdrant."""
 

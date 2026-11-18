@@ -12,7 +12,7 @@ from qdrant_client import QdrantClient, models
 from app.core.logging import get_logger, kv
 from app.ingestion.chunking import split_parent_child
 from app.ingestion.loader import discover_files, load_document
-from app.retrieval.dense_retriever import ensure_collection, point_id
+from app.retrieval.dense_retriever import ensure_collection, ensure_document_index, point_id
 
 log = get_logger(__name__)
 
@@ -166,6 +166,7 @@ class Indexer:
     def _delete_vectors(self, document_id: str) -> None:
         if not self.client.collection_exists(self.collection):
             return
+        ensure_document_index(self.client, self.collection)
         self.client.delete(
             collection_name=self.collection,
             points_selector=models.FilterSelector(

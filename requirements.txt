@@ -21,3 +21,4 @@ pytest-mock
 langchain-google-genai
 langchain-huggingface
 sentence-transformers
+python-multipart
