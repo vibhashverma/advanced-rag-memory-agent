@@ -1,0 +1,144 @@
+{
+  "info": {
+    "name": "Advanced RAG Agent API",
+    "description": "Advanced RAG Agent with Context Compression & Semantic Memory.\n\nSet the `base_url` collection variable (default http://localhost:8000). Run POST /api/chat first, then GET memories.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "base_url", "value": "http://localhost:8000", "type": "string" },
+    { "key": "user_id", "value": "usr_99", "type": "string" },
+    { "key": "session_id", "value": "session_001", "type": "string" }
+  ],
+  "item": [
+    {
+      "name": "POST /api/chat",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('status is 200', () => pm.response.to.have.status(200));",
+              "const b = pm.response.json();",
+              "pm.test('has answer, sources, telemetry', () => {",
+              "  pm.expect(b).to.have.property('answer');",
+              "  pm.expect(b).to.have.property('sources');",
+              "  pm.expect(b).to.have.property('telemetry');",
+              "});",
+              "pm.test('telemetry has the 4 latency metrics', () => {",
+              "  ['retrieval_latency_ms','rerank_latency_ms','generation_latency_ms','total_latency_ms']",
+              "    .forEach(k => pm.expect(b.telemetry[k]).to.be.a('number'));",
+              "});",
+              "pm.test('at most 5 contexts reach the LLM', () => pm.expect(b.sources.length).to.be.at.most(5));"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" },
+          { "key": "Accept", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"query\": \"Explain hybrid search\",\n  \"user_id\": \"{{user_id}}\",\n  \"session_id\": \"{{session_id}}\"\n}",
+          "options": { "raw": { "language": "json" } }
+        },
+        "url": {
+          "raw": "{{base_url}}/api/chat",
+          "host": ["{{base_url}}"],
+          "path": ["api", "chat"]
+        },
+        "description": "Runs the full pipeline: user memories -> persona -> dense+BM25 retrieval -> RRF -> parent documents (top 20) -> Cohere rerank (top 5) -> LLM -> memory update. Returns the answer, sources and latency telemetry. Memories are keyed by user_id, so they persist across session_id values."
+      },
+      "response": [
+        {
+          "name": "200 OK (illustrative values)",
+          "originalRequest": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"query\": \"Explain hybrid search\",\n  \"user_id\": \"usr_99\",\n  \"session_id\": \"session_001\"\n}"
+            },
+            "url": { "raw": "{{base_url}}/api/chat", "host": ["{{base_url}}"], "path": ["api", "chat"] }
+          },
+          "status": "OK",
+          "code": 200,
+          "_postman_previewlanguage": "json",
+          "header": [{ "key": "Content-Type", "value": "application/json" }],
+          "body": "{\n  \"answer\": \"Hybrid search combines dense (semantic) and sparse (BM25 keyword) retrieval ... [1]\",\n  \"user_id\": \"usr_99\",\n  \"session_id\": \"session_001\",\n  \"sources\": [\n    {\n      \"source\": \"rag_overview.txt\",\n      \"page\": null,\n      \"parent_id\": \"b133bac4478f7ae1-p0\",\n      \"relevance_score\": 0.93,\n      \"snippet\": \"Hybrid search combines dense retrieval and sparse retrieval...\"\n    }\n  ],\n  \"telemetry\": {\n    \"retrieval_latency_ms\": 120.4,\n    \"rerank_latency_ms\": 180.2,\n    \"generation_latency_ms\": 450.7,\n    \"total_latency_ms\": 800.9,\n    \"retrieved_candidates\": 20,\n    \"compressed_contexts\": 5\n  }\n}"
+        },
+        {
+          "name": "422 Validation error",
+          "originalRequest": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"query\": \"  \",\n  \"user_id\": \"usr_99\",\n  \"session_id\": \"session_001\"\n}" },
+            "url": { "raw": "{{base_url}}/api/chat", "host": ["{{base_url}}"], "path": ["api", "chat"] }
+          },
+          "status": "Unprocessable Entity",
+          "code": 422,
+          "_postman_previewlanguage": "json",
+          "header": [{ "key": "Content-Type", "value": "application/json" }],
+          "body": "{\n  \"detail\": [\n    {\n      \"type\": \"string_too_short\",\n      \"loc\": [\"body\", \"query\"],\n      \"msg\": \"String should have at least 1 character\"\n    }\n  ]\n}"
+        }
+      ]
+    },
+    {
+      "name": "GET /api/users/{user_id}/memories",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('status is 200', () => pm.response.to.have.status(200));",
+              "const b = pm.response.json();",
+              "pm.test('user_id echoed and memories is an array', () => {",
+              "  pm.expect(b.user_id).to.eql(pm.collectionVariables.get('user_id'));",
+              "  pm.expect(b.memories).to.be.an('array');",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [{ "key": "Accept", "value": "application/json" }],
+        "url": {
+          "raw": "{{base_url}}/api/users/{{user_id}}/memories",
+          "host": ["{{base_url}}"],
+          "path": ["api", "users", "{{user_id}}", "memories"]
+        },
+        "description": "Returns every semantic memory stored for this user only. Unknown users get an empty list."
+      },
+      "response": [
+        {
+          "name": "200 OK",
+          "originalRequest": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{base_url}}/api/users/usr_99/memories", "host": ["{{base_url}}"], "path": ["api", "users", "usr_99", "memories"] }
+          },
+          "status": "OK",
+          "code": 200,
+          "_postman_previewlanguage": "json",
+          "header": [{ "key": "Content-Type", "value": "application/json" }],
+          "body": "{\n  \"user_id\": \"usr_99\",\n  \"memories\": [\n    { \"id\": \"01b50f0a-be1a-4084-a57d-a5a68e870147\", \"fact\": \"Prefers Python\", \"category\": \"programming_language\" },\n    { \"id\": \"acda9988-913e-418d-9bbc-c5110851e3a7\", \"fact\": \"Prefers brief responses\", \"category\": \"response_style\" }\n  ]\n}"
+        }
+      ]
+    },
+    {
+      "name": "GET /health",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": { "raw": "{{base_url}}/health", "host": ["{{base_url}}"], "path": ["health"] },
+        "description": "Liveness check (no credentials needed)."
+      },
+      "response": []
+    }
+  ]
+}
