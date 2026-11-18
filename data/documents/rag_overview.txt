@@ -1,0 +1,19 @@
+Hybrid Search
+
+Hybrid search combines dense retrieval and sparse retrieval. Dense retrieval embeds the query and the documents into vectors and finds nearest neighbours, which captures semantic similarity even when the wording differs. Sparse retrieval, such as BM25, scores documents by exact keyword overlap, which works well for rare terminology, identifiers and product names. Because the two methods fail in different ways, merging their results gives better recall than either alone.
+
+Reciprocal Rank Fusion
+
+Reciprocal Rank Fusion (RRF) merges several ranked lists without needing comparable scores. Each document receives the sum of 1 / (k + rank) across every list in which it appears, where k is a smoothing constant, commonly 60. Documents ranked highly by both dense and sparse retrieval rise to the top, and a document that appears in both lists is counted once.
+
+Parent-Document Retrieval
+
+Small chunks embed precisely but carry too little context for an LLM to answer from. The parent-document retriever indexes small child chunks of about 200 characters, but when a child matches it returns the larger parent chunk of about 1000 characters that contains it. Several children of the same parent collapse into a single parent so context is not duplicated.
+
+Reranking and Context Compression
+
+A cross-encoder reranker such as Cohere Rerank reads the query and each candidate together and produces a relevance score. A common pipeline retrieves 20 candidates cheaply, reranks them, discards anything below a minimum relevance score, and keeps only the top 5. This context compression reduces prompt tokens and removes distracting passages before generation.
+
+Semantic Memory
+
+Long-term semantic memory stores facts and preferences extracted from conversations, such as a preferred programming language or a preference for brief answers. Memories are keyed by user id rather than session id, so a preference stated in one session is available in later sessions. Persona adaptation injects those memories into the system prompt so the assistant answers in the style the user prefers.
