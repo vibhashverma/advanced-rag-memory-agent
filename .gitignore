@@ -1,0 +1,15 @@
+.env
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+data/qdrant_storage/*
+data/parents/
+data/children.json
+data/ingest_manifest.json
+data/mem0/
+!data/qdrant_storage/.gitkeep
+!data/documents/.gitkeep
+*.egg-info/
+.idea/
+.vscode/

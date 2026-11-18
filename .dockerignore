@@ -1,0 +1,8 @@
+.venv
+.git
+.env
+__pycache__
+.pytest_cache
+data/qdrant_storage
+data/mem0
+tests
