@@ -179,6 +179,8 @@ Covers RRF, Cohere rerank filtering (mocked client), parent retrieval, ingestion
 
 ## 13. Docker
 
+> **Note:** the Dockerfile and docker-compose.yml are provided but have **not been built or run** (Docker was not available in the development environment). The application itself is fully verified locally; treat the Docker setup as untested.
+
 ```bash
 docker build -t advanced-rag-agent .
 docker run -p 8000:8000 --env-file .env advanced-rag-agent
@@ -193,6 +195,7 @@ The image has a `/health` HEALTHCHECK and never contains secrets.
 
 ## 14. Known limitations
 
+- Docker files are untested (see section 13).
 - Running the full pipeline requires real Cohere and LLM/embedding API keys; the automated tests mock them. Live end-to-end behaviour against those APIs depends on your keys and models.
 - Memory categories are assigned by keyword rules, not by the LLM; unusual facts fall into `general`.
 - The BM25 index is held in memory and rebuilt from `data/children.json` when chunks change; very large corpora would call for Qdrant sparse vectors instead.
